@@ -19,12 +19,20 @@ TriggerableAction 是一个轻量级的可触发事件模块，为 Swift 提供�
 
 - **TriggerableAction**: 可触发事件协议，定义了同步事件触发的基本接口
 - **TriggerableAsyncAction**: 可触发异步事件协议，继承自 TriggerableAction，支持异步事件触发
+- **TriggerableResultAction**: 可触发带结果事件协议，定义了返回结果的同步触发接口
+- **TriggerableAsyncResultAction**: 可触发异步带结果事件协议，定义了返回结果的异步触发接口
 - **AnyTriggerAction**: 任意可触发事件的类型擦除包装器，用于统一不同类型的触发器
 - **AnyAsyncTriggerAction**: 任意可异步触发事件的类型擦除包装器
+- **AnyTriggerResultAction**: 任意可触发带结果事件的类型擦除包装器
+- **AnyAsyncTriggerResultAction**: 任意可异步触发带结果事件的类型擦除包装器
 - **TriggerBlockAction**: 基于闭包的可触发事件实现
 - **TriggerAsyncBlockAction**: 基于异步闭包的可触发事件实现
+- **TriggerBlockResultAction**: 基于闭包的可触发带结果事件实现
+- **TriggerAsyncBlockResultAction**: 基于异步闭包的可触发带结果事件实现
 - **TriggerGroupAction**: 可触发事件组，支持将多个触发器组合在一起
 - **TriggerAsyncGroupAction**: 可触发异步事件组
+- **TriggerGroupResultAction**: 可触发带结果事件组
+- **TriggerAsyncGroupResultAction**: 可触发异步带结果事件组
 - **DataConverter**: 数据转换器协议，用于在触发事件前进行数据预处理
 - **AsyncDataConverter**: 异步数据转换器协议
 
@@ -32,7 +40,8 @@ TriggerableAction 是一个轻量级的可触发事件模块，为 Swift 提供�
 
 - **类型安全**: 通过泛型确保触发数据类型的一致性
 - **异步支持**: 同时支持同步和异步事件触发
-- **类型擦除**: 提供 AnyTriggerAction 和 AnyAsyncTriggerAction 用于统一存储不同类型的触发器
+- **结果返回**: 支持触发器返回处理结果，扩展了事件触发的使用场景
+- **类型擦除**: 提供各种类型擦除包装器用于统一存储不同类型的触发器
 - **数据转换**: 支持在触发前进行数据转换，实现数据预处理
 - **事件组合**: 支持将多个触发器组合成事件组，实现批量触发
 - **闭包支持**: 提供基于闭包的快速触发器实现
@@ -52,6 +61,48 @@ dependencies: [
 ## 使用
 
 ### 基础使用
+
+#### 创建带结果的自定义触发器
+
+```swift
+import TriggerableAction
+
+struct StringToIntAction: TriggerableResultAction {
+    func trigger(with data: String) throws -> Int {
+        guard let intValue = Int(data) else {
+            throw ConversionError.invalidFormat
+        }
+        return intValue
+    }
+}
+
+enum ConversionError: Error {
+    case invalidFormat
+}
+
+let resultAction = StringToIntAction()
+let result = try resultAction.trigger(with: "123") // result = 123
+```
+
+#### 创建异步带结果的触发器
+
+```swift
+import TriggerableAction
+
+struct AsyncStringToIntAction: TriggerableAsyncResultAction {
+    func trigger(with data: String) async throws -> Int {
+        // 模拟异步操作
+        try await Task.sleep(nanoseconds: 1_000_000_000)
+        guard let intValue = Int(data) else {
+            throw ConversionError.invalidFormat
+        }
+        return intValue
+    }
+}
+
+let asyncResultAction = AsyncStringToIntAction()
+let asyncResult = try await asyncResultAction.trigger(with: "456") // asyncResult = 456
+```
 
 #### 创建自定义触发器
 
@@ -91,6 +142,37 @@ try await asyncAction.trigger(with: "Hello, Async World!")
 
 ### 使用闭包触发器
 
+#### 带结果的同步闭包触发器
+
+```swift
+import TriggerableAction
+
+let blockResultAction = TriggerBlockResultAction<String, Int> { data in
+    guard let intValue = Int(data) else {
+        throw ConversionError.invalidFormat
+    }
+    return intValue
+}
+
+let result = try blockResultAction.trigger(with: "789") // result = 789
+```
+
+#### 带结果的异步闭包触发器
+
+```swift
+import TriggerableAction
+
+let asyncBlockResultAction = TriggerAsyncBlockResultAction<String, Int> { data async in
+    try await Task.sleep(nanoseconds: 1_000_000_000)
+    guard let intValue = Int(data) else {
+        throw ConversionError.invalidFormat
+    }
+    return intValue
+}
+
+let asyncResult = try await asyncBlockResultAction.trigger(with: "101") // asyncResult = 101
+```
+
 #### 同步闭包触发器
 
 ```swift
@@ -117,6 +199,41 @@ try await asyncBlockAction.trigger(with: "异步闭包测试")
 ```
 
 ### 使用类型擦除
+
+#### 带结果的类型擦除触发器
+
+```swift
+import TriggerableAction
+
+struct DoubleToStringAction: TriggerableResultAction {
+    func trigger(with data: Double) throws -> String {
+        return String(format: "%.2f", data)
+    }
+}
+
+let doubleAction = DoubleToStringAction()
+let anyResultAction = doubleAction.eraseToAny() // 类型擦除为 AnyTriggerResultAction<Double, String>
+
+let stringResult = try anyResultAction.trigger(with: 3.14159) // stringResult = "3.14"
+```
+
+#### 异步带结果的类型擦除触发器
+
+```swift
+import TriggerableAction
+
+struct AsyncDoubleToStringAction: TriggerableAsyncResultAction {
+    func trigger(with data: Double) async throws -> String {
+        try await Task.sleep(nanoseconds: 100_000_000)
+        return String(format: "%.2f", data)
+    }
+}
+
+let asyncDoubleAction = AsyncDoubleToStringAction()
+let anyAsyncResultAction = asyncDoubleAction.eraseToAny() // 类型擦除为 AnyAsyncTriggerResultAction<Double, String>
+
+let asyncStringResult = try await anyAsyncResultAction.trigger(with: 2.71828) // asyncStringResult = "2.72"
+```
 
 #### 类型擦除触发器
 
@@ -203,6 +320,48 @@ try await asyncConvertedAction.trigger(with: "456")
 
 ### 使用事件组
 
+#### 带结果的同步事件组
+
+```swift
+import TriggerableAction
+
+let resultAction1 = TriggerBlockResultAction<Int, String> { data in
+    return "结果1: \(data)"
+}
+
+let resultAction2 = TriggerBlockResultAction<Int, String> { data in
+    return "结果2: \(data * 2)"
+}
+
+var resultGroup = resultAction1.group()
+resultGroup.add(resultAction2)
+
+let results = try resultGroup.trigger(with: 10)
+// results = ["结果1: 10", "结果2: 20"]
+```
+
+#### 带结果的异步事件组
+
+```swift
+import TriggerableAction
+
+let asyncResultAction1 = TriggerAsyncBlockResultAction<Int, String> { data async in
+    try await Task.sleep(nanoseconds: 100_000_000)
+    return "异步结果1: \(data)"
+}
+
+let asyncResultAction2 = TriggerAsyncBlockResultAction<Int, String> { data async in
+    try await Task.sleep(nanoseconds: 100_000_000)
+    return "异步结果2: \(data * 3)"
+}
+
+var asyncResultGroup = asyncResultAction1.group()
+asyncResultGroup.add(asyncResultAction2)
+
+let asyncResults = try await asyncResultGroup.trigger(with: 20)
+// asyncResults = ["异步结果1: 20", "异步结果2: 60"]
+```
+
 #### 同步事件组
 
 ```swift
@@ -247,6 +406,40 @@ try await asyncGroup.trigger(with: "异步组触发测试")
 ```
 
 ### 高级用法
+
+#### 带结果触发器的链式组合
+
+```swift
+import TriggerableAction
+
+// 前置带结果触发器
+let stringToIntAction = TriggerBlockResultAction<String, Int> { Int($0)! }
+let intToStringAction = TriggerBlockResultAction<Int, String> { "处理后: \($0)" }
+
+// 链式组合：String -> Int -> String
+let chainedAction = intToStringAction.prepend(stringToIntAction)
+let chainedResult = try chainedAction.trigger(with: "123") // chainedResult = "处理后: 123"
+
+// 后置带结果触发器
+let doubleAction = TriggerBlockResultAction<Int, Double> { Double($0) * 1.5 }
+let chainedResult2 = stringToIntAction.append(doubleAction).trigger(with: "100") // chainedResult2 = 150.0
+```
+
+#### 带结果触发器与普通触发器的组合
+
+```swift
+import TriggerableAction
+
+// 带结果触发器
+let resultAction = TriggerBlockResultAction<String, Int> { Int($0)! }
+
+// 普通触发器
+let normalAction = TriggerBlockAction<Int> { print("收到整数: \($0)") }
+
+// 组合：先获取结果，再执行普通触发器
+let combinedAction = resultAction.append(normalAction).eraseResult()
+try combinedAction.trigger(with: "42") // 输出: "收到整数: 42"
+```
 
 #### 链式数据转换
 

@@ -8,29 +8,58 @@
 import Foundation
 
 /// 可触发闭包事件
-public struct TriggerBlockAction<Data>: TriggerableAction {
+public struct TriggerBlockAction<TriggerData>: TriggerableAction {
 
-    let block : @Sendable (Data) throws -> Void
+    let block : @Sendable (TriggerData) throws -> Void
         
-    public init(block: @Sendable @escaping (Data) throws -> Void) {
+    public init(block: @Sendable @escaping (TriggerData) throws -> Void) {
         self.block = block
     }
     
-    public func trigger(with data: Data) throws {
+    public func trigger(with data: TriggerData) throws {
         try block(data)
     }
 }
 
 /// 可触发异步闭包事件
-public struct TriggerAsyncBlockAction<Data>: TriggerableAsyncAction {
+public struct TriggerAsyncBlockAction<TriggerData>: TriggerableAsyncAction {
 
-    let block : @Sendable (Data) async throws -> Void
+    let block : @Sendable (TriggerData) async throws -> Void
         
-    public init(block: @Sendable @escaping (Data) async throws -> Void) {
+    public init(block: @Sendable @escaping (TriggerData) async throws -> Void) {
         self.block = block
     }
     
-    public func trigger(with data: Data) async throws {
+    public func trigger(with data: TriggerData) async throws {
+        try await block(data)
+    }
+}
+
+
+/// 可触发闭包带结果事件
+public struct TriggerBlockResultAction<TriggerData, ResultData>: TriggerableResultAction {
+
+    let block : @Sendable (TriggerData) throws -> ResultData
+        
+    public init(block: @Sendable @escaping (TriggerData) throws -> ResultData) {
+        self.block = block
+    }
+    
+    public func trigger(with data: TriggerData) throws -> ResultData {
+        try block(data)
+    }
+}
+
+/// 可触发异步闭包带结果事件
+public struct TriggerAsyncBlockResultAction<TriggerData, ResultData>: TriggerableAsyncResultAction {
+
+    let block : @Sendable (TriggerData) async throws -> ResultData
+        
+    public init(block: @Sendable @escaping (TriggerData) async throws -> ResultData) {
+        self.block = block
+    }
+    
+    public func trigger(with data: TriggerData) async throws -> ResultData {
         try await block(data)
     }
 }

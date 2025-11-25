@@ -6,7 +6,7 @@
 //
 
 import Testing
-import TriggerableAction
+@testable import TriggerableAction
 
 @MainActor
 @Suite("可触发事件测试")
@@ -76,6 +76,67 @@ struct TriggerableActionTests {
         #expect(TriggerIntAction.callInt == triggerInt)
     }
     
+    @Test("触发字符串转数字事件测试")
+    func testTriggerStringToIntAction() throws {
+        struct TriggerStringToIntAction: TriggerableResultAction {
+            func trigger(with data: String) throws -> Int {
+                return Int(data)!
+            }
+        }
+        
+        let triggerAction = TriggerStringToIntAction()
+        let triggerString = "1"
+        let triggerInt = 1
+        
+        let result = try triggerAction.trigger(with: triggerString)
+        
+        #expect(result == triggerInt)
+    }
+    
+    @Test("触发异步字符串转数字事件测试")
+    func testTriggerAsyncStringToIntAction() async throws {
+        struct TriggerAsyncStringToIntIntAction: TriggerableAsyncResultAction {
+            func trigger(with data: String) async throws -> Int {
+                return Int(data)!
+            }
+        }
+        
+        let triggerAction = TriggerAsyncStringToIntIntAction()
+        let triggerString = "1"
+        let triggerInt = 1
+        
+        let result = try await triggerAction.trigger(with: triggerString)
+        
+        #expect(result == triggerInt)
+    }
+    
+    @Test("异步触发同步字符串转数字事件测试")
+    func testAsyncTriggerSyncStringToIntAction() async throws {
+        struct TriggerStringToIntAction: TriggerableResultAction {
+            func trigger(with data: String) throws -> Int {
+                return Int(data)!
+            }
+        }
+        
+        struct AsyncStringToStringConverter: AsyncDataConverter {
+            nonisolated(unsafe)
+            static var callString: String = ""
+            func process(data: String) async throws -> String {
+                Self.callString = data
+                return data
+            }
+        }
+        
+        let triggerAction = TriggerStringToIntAction().prepend(converter: AsyncStringToStringConverter())
+        let triggerString = "1"
+        let triggerInt = 1
+        
+        let result = try await triggerAction.trigger(with: triggerString)
+        
+        #expect(AsyncStringToStringConverter.callString == triggerString)
+        #expect(result == triggerInt)
+    }
+    
     @Test("任意可触发事件测试")
     func testAnyTriggerAction() throws {
         let triggerAction = TriggerStringAction().eraseToAny()
@@ -126,6 +187,65 @@ struct TriggerableActionTests {
         try await triggerAction.trigger(with: triggerString)
         
         #expect(TriggerIntAction.callInt == triggerInt)
+    }
+    
+    @Test("任意可触发带结果事件测试")
+    func testAnyTriggerResultAction() throws {
+        struct TriggerStringToIntAction: TriggerableResultAction {
+            func trigger(with data: String) throws -> Int {
+                return Int(data)!
+            }
+        }
+        let triggerAction = TriggerStringToIntAction().eraseToAny()
+        let triggerString = "1"
+        let triggerInt = 1
+                
+        let result = try triggerAction.trigger(with: triggerString)
+        
+        #expect(result == triggerInt)
+    }
+    
+    @Test("任意可异步触发带结果事件测试")
+    func testAnyAsyncTriggerResultAction() async throws {
+        struct TriggerAsyncStringToIntIntAction: TriggerableAsyncResultAction {
+            func trigger(with data: String) async throws -> Int {
+                return Int(data)!
+            }
+        }
+        let triggerAction = TriggerAsyncStringToIntIntAction().eraseToAny()
+        let triggerString = "1"
+        let triggerInt = 1
+                
+        let result = try await triggerAction.trigger(with: triggerString)
+        
+        #expect(result == triggerInt)
+    }
+    
+    @Test("任意可异步触发同步带结果事件测试")
+    func testAsyncAnyTriggerResultAction() async throws {
+        struct TriggerStringToIntAction: TriggerableResultAction {
+            func trigger(with data: String) throws -> Int {
+                return Int(data)!
+            }
+        }
+        
+        struct AsyncStringToStringConverter: AsyncDataConverter {
+            nonisolated(unsafe)
+            static var callString: String = ""
+            func process(data: String) async throws -> String {
+                Self.callString = data
+                return data
+            }
+        }
+        
+        let triggerAction = TriggerStringToIntAction().eraseToAny().prepend(converter: AsyncStringToStringConverter())
+        let triggerString = "1"
+        let triggerInt = 1
+                
+        let result = try await triggerAction.trigger(with: triggerString)
+        
+        #expect(AsyncStringToStringConverter.callString == triggerString)
+        #expect(result == triggerInt)
     }
     
     @Test("触发器数据转化测试")
@@ -208,6 +328,66 @@ struct TriggerableActionTests {
         
         #expect(StringToIntConverter.callString == triggerString)
         #expect(TriggerAsyncIntAction.callInt == resultInt)
+    }
+    
+    @Test("带结果触发器数据转化测试")
+    func testDataConverterWithResultAction() throws {
+        struct TriggerStringToIntAction: TriggerableResultAction {
+            func trigger(with data: String) throws -> Int {
+                return Int(data)!
+            }
+        }
+        
+        struct StringToStringConverter: DataConverter {
+            nonisolated(unsafe)
+            static var callString: String = ""
+            func process(data: String) throws -> String {
+                Self.callString = data
+                return data
+            }
+        }
+        
+        let triggerAction = TriggerStringToIntAction().eraseToAny()
+        let triggerString = "1"
+        let resultInt = 1
+        
+        let converterAction = triggerAction.prepend(converter: StringToStringConverter())
+        StringToStringConverter.callString = ""
+        
+        let result = try converterAction.trigger(with: triggerString)
+        
+        #expect(StringToStringConverter.callString == triggerString)
+        #expect(result == resultInt)
+    }
+    
+    @Test("带结果异步触发器数据转化测试")
+    func testAsyncDataConverterWithResultAction() async throws {
+        struct TriggerAsyncStringToIntAction: TriggerableAsyncResultAction {
+            func trigger(with data: String) async throws -> Int {
+                return Int(data)!
+            }
+        }
+        
+        struct StringToStringConverter: DataConverter {
+            nonisolated(unsafe)
+            static var callString: String = ""
+            func process(data: String) throws -> String {
+                Self.callString = data
+                return data
+            }
+        }
+        
+        let triggerAction = TriggerAsyncStringToIntAction().eraseToAny()
+        let triggerString = "1"
+        let resultInt = 1
+        
+        let converterAction = triggerAction.prepend(converter: StringToStringConverter())
+        StringToStringConverter.callString = ""
+        
+        let result = try await converterAction.trigger(with: triggerString)
+        
+        #expect(StringToStringConverter.callString == triggerString)
+        #expect(result == resultInt)
     }
     
     @Test("空触发器数据转化测试")
@@ -326,6 +506,34 @@ struct TriggerableActionTests {
         #expect(Self.triggerAsyncBlockActionCall == triggerInt)
     }
     
+    @Test("触发可触发闭包带结果事件测试")
+    func testTriggerBlockResultAction() throws {
+        let triggerAction = TriggerBlockResultAction { (data: Int) -> String in
+            "\(data)"
+        }
+        
+        let triggerInt = 1
+        let triggerString = "1"
+        
+        let result = try triggerAction.trigger(with: triggerInt)
+        
+        #expect(result == triggerString)
+    }
+    
+    @Test("触发可异步触发闭包带结果事件测试")
+    func testTriggerAsyncBlockResultAction() async throws {
+        let triggerAction = TriggerAsyncBlockResultAction { (data: Int) async -> String in
+            "\(data)"
+        }
+        
+        let triggerInt = 1
+        let triggerString = "1"
+        
+        let result = try await triggerAction.trigger(with: triggerInt)
+        
+        #expect(result == triggerString)
+    }
+    
     nonisolated(unsafe)
     static var triggerGroupActionCall1 = 0
     nonisolated(unsafe)
@@ -340,7 +548,7 @@ struct TriggerableActionTests {
         }
         
         var group = triggerAction1.group()
-        group.append(triggerAction2)
+        group.add(triggerAction2)
         
         let triggerInt = 1
         
@@ -368,8 +576,8 @@ struct TriggerableActionTests {
         
         var group = triggerAction1.group()
         group = .init()
-        group.append(triggerAction1)
-        group.append(triggerAction2)
+        group.add(triggerAction1)
+        group.add(triggerAction2)
         
         let triggerInt = 1
         
@@ -405,8 +613,8 @@ struct TriggerableActionTests {
         }
         
         var group = TriggerGroupAction<Int>()
-        group.append(triggerAction1)
-        group.append(triggerAction2)
+        group.add(triggerAction1)
+        group.add(triggerAction2)
         
         let triggerAction = group.prepend(converter: AsyncStringToIntConverter())
         
@@ -420,6 +628,215 @@ struct TriggerableActionTests {
         
         #expect(Self.asyncTriggerSyncGroupActionCall1 == triggerInt)
         #expect(Self.asyncTriggerSyncGroupActionCall2 == triggerInt)
+    }
+    
+    @Test("触发可触发带结果事件组测试")
+    func testTriggerGroupResultAction() throws {
+        let triggerAction1 = TriggerBlockResultAction { (data: Int) -> String in
+            "\(data)"
+        }
+        let triggerAction2 = TriggerBlockResultAction { (data: Int) -> String in
+            "\(data + 1)"
+        }
+        
+        var group = triggerAction1.group()
+        #expect(group.triggers.count == 1)
+        group = .init()
+        group.add(triggerAction1)
+        group.add(triggerAction2)
+        
+        let triggerInt = 1
+        let triggerResult1 = "1"
+        let triggerResult2 = "2"
+        
+        let result = try group.trigger(with: triggerInt)
+        
+        #expect(result.count == 2)
+        if result.count == 2 {
+            #expect(result[0] == triggerResult1)
+            #expect(result[1] == triggerResult2)
+        }
+    }
+    
+    @Test("触发异步可触发带结果事件组测试")
+    func testTriggerAsyncGroupResultAction() async throws {
+        let triggerAction1 = TriggerAsyncBlockResultAction { (data: Int) -> String in
+            "\(data)"
+        }
+        let triggerAction2 = TriggerAsyncBlockResultAction { (data: Int) -> String in
+            "\(data + 1)"
+        }
+                
+        var group = triggerAction1.group()
+        #expect(group.triggers.count == 1)
+        group = .init()
+        group.add(triggerAction1)
+        group.add(triggerAction2)
+        
+        let triggerInt = 1
+        let triggerResult1 = "1"
+        let triggerResult2 = "2"
+        
+        let result = try await group.trigger(with: triggerInt)
+        
+        #expect(result.count == 2)
+        if result.count == 2 {
+            #expect(result[0] == triggerResult1)
+            #expect(result[1] == triggerResult2)
+        }
+    }
+    
+    @Test("异步触发同步可触发带结果事件组测试")
+    func testAsyncTriggerSyncGroupResultAction() async throws {
+        let triggerAction1 = TriggerBlockResultAction { (data: Int) -> String in
+            "\(data)"
+        }
+        let triggerAction2 = TriggerBlockResultAction { (data: Int) -> String in
+            "\(data + 1)"
+        }
+        
+        struct AsyncIntToIntConverter: AsyncDataConverter {
+            nonisolated(unsafe)
+            static var callInt: Int = 0
+            func process(data: Int) async throws -> Int {
+                Self.callInt = data
+                return data
+            }
+        }
+        
+        var group = triggerAction1.group()
+        #expect(group.triggers.count == 1)
+        group = .init()
+        group.add(triggerAction1)
+        group.add(triggerAction2)
+        
+        let triggerInt = 1
+        let triggerResult1 = "1"
+        let triggerResult2 = "2"
+        
+        let result = try await group.prepend(converter: AsyncIntToIntConverter()).trigger(with: triggerInt)
+        
+        #expect(result.count == 2)
+        if result.count == 2 {
+            #expect(result[0] == triggerResult1)
+            #expect(result[1] == triggerResult2)
+        }
+    }
+    
+    @Test("触发器前置带结果触发器测试")
+    func testTriggerActionPrependResultTrigger() throws {
+        struct TriggerIntAction: TriggerableAction {
+            nonisolated(unsafe)
+            static var callInt: Int = 0
+            func trigger(with data: Int) throws {
+                Self.callInt = data
+            }
+        }
+        
+        struct TriggerIntToIntAction: TriggerableResultAction {
+            nonisolated(unsafe)
+            static var callInt: Int = 0
+            func trigger(with data: Int) throws -> Int {
+                Self.callInt += data
+                return data
+            }
+        }
+        
+        let triggerInt = 1
+        
+        let trigger = TriggerIntAction().prepend(TriggerIntToIntAction()).prepend(TriggerIntToIntAction()).eraseResult()
+        
+        try trigger.trigger(with: triggerInt)
+        
+        #expect(TriggerIntAction.callInt == triggerInt)
+        #expect(TriggerIntToIntAction.callInt == (triggerInt + triggerInt))
+    }
+    
+    @Test("异步触发器前置异步带结果触发器测试")
+    func testTriggerAsyncActionPrependAsyncResultTrigger() async throws {
+        struct TriggerAsyncIntAction: TriggerableAsyncAction {
+            nonisolated(unsafe)
+            static var callInt: Int = 0
+            func trigger(with data: Int) async throws {
+                Self.callInt = data
+            }
+        }
+        
+        struct TriggerAsyncIntToIntAction: TriggerableAsyncResultAction {
+            nonisolated(unsafe)
+            static var callInt: Int = 0
+            func trigger(with data: Int) async throws -> Int {
+                Self.callInt = data
+                return data
+            }
+        }
+        
+        let triggerInt = 1
+        
+        let trigger = TriggerAsyncIntAction().prepend(TriggerAsyncIntToIntAction()).prepend(TriggerAsyncIntToIntAction()).eraseResult()
+        
+        try await trigger.trigger(with: triggerInt)
+        
+        #expect(TriggerAsyncIntAction.callInt == triggerInt)
+        #expect(TriggerAsyncIntToIntAction.callInt == triggerInt)
+    }
+    
+    @Test("带结果触发器后置触发器测试")
+    func testTriggerResultActionAppendTrigger() throws {
+        struct TriggerIntAction: TriggerableAction {
+            nonisolated(unsafe)
+            static var callInt: Int = 0
+            func trigger(with data: Int) throws {
+                Self.callInt = data
+            }
+        }
+        
+        struct TriggerIntToIntAction: TriggerableResultAction {
+            nonisolated(unsafe)
+            static var callInt: Int = 0
+            func trigger(with data: Int) throws -> Int {
+                Self.callInt = data
+                return data
+            }
+        }
+        
+        let triggerInt = 1
+        
+        let trigger = TriggerIntToIntAction().append(TriggerIntAction()).eraseResult()
+        
+        try trigger.trigger(with: triggerInt)
+        
+        #expect(TriggerIntAction.callInt == triggerInt)
+        #expect(TriggerIntToIntAction.callInt == triggerInt)
+    }
+    
+    @Test("异步带结果触发器后置异步触发器测试")
+    func testTriggerAsyncResultActionAppendAsyncTrigger() async throws {
+        struct TriggerAsyncIntAction: TriggerableAsyncAction {
+            nonisolated(unsafe)
+            static var callInt: Int = 0
+            func trigger(with data: Int) async throws {
+                Self.callInt = data
+            }
+        }
+        
+        struct TriggerAsyncIntToIntAction: TriggerableAsyncResultAction {
+            nonisolated(unsafe)
+            static var callInt: Int = 0
+            func trigger(with data: Int) async throws -> Int {
+                Self.callInt = data
+                return data
+            }
+        }
+        
+        let triggerInt = 1
+        
+        let trigger = TriggerAsyncIntToIntAction().append(TriggerAsyncIntAction()).eraseResult()
+        
+        try await trigger.trigger(with: triggerInt)
+        
+        #expect(TriggerAsyncIntAction.callInt == triggerInt)
+        #expect(TriggerAsyncIntToIntAction.callInt == triggerInt)
     }
 }
 
