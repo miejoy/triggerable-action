@@ -29,6 +29,7 @@ TriggerableAction 是一个轻量级的可触发事件模块，为 Swift 提供�
 - **TriggerAsyncBlockAction**: 基于异步闭包的可触发事件实现
 - **TriggerBlockResultAction**: 基于闭包的可触发带结果事件实现
 - **TriggerAsyncBlockResultAction**: 基于异步闭包的可触发带结果事件实现
+- **TriggerCompletionAction**: 基于 completion handler 的可触发带结果事件实现
 - **TriggerGroupAction**: 可触发事件组，支持将多个触发器组合在一起
 - **TriggerAsyncGroupAction**: 可触发异步事件组
 - **TriggerGroupResultAction**: 可触发带结果事件组
@@ -171,6 +172,53 @@ let asyncBlockResultAction = TriggerAsyncBlockResultAction<String, Int> { data a
 }
 
 let asyncResult = try await asyncBlockResultAction.trigger(with: "101") // asyncResult = 101
+```
+
+#### 基于 completion handler 的触发器
+
+```swift
+import TriggerableAction
+
+let completionAction = TriggerCompletionAction<String, Int> { data, completion in
+    // 模拟异步操作
+    DispatchQueue.global().asyncAfter(deadline: .now() + 1) {
+        if let intValue = Int(data) {
+            completion(intValue)
+        }
+    }
+}
+
+let result = try await completionAction.trigger(with: "202") // result = 202
+```
+
+#### 带超时的 completion handler 触发器
+
+```swift
+import TriggerableAction
+
+let timeoutAction = TriggerCompletionAction<String, Int>(timeout: 5.0) { data, completion in
+    // 模拟耗时操作，设置 5 秒超时
+    DispatchQueue.global().asyncAfter(deadline: .now() + 1) {
+        if let intValue = Int(data) {
+            completion(intValue)
+        }
+    }
+}
+
+let result = try await timeoutAction.trigger(with: "303") // result = 303
+
+// 超时示例
+let timeoutErrorAction = TriggerCompletionAction<String, Int>(timeout: 0.1) { data, completion in
+    DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
+        completion(Int(data)!)
+    }
+}
+
+do {
+    _ = try await timeoutErrorAction.trigger(with: "404")
+} catch TimeoutError {
+    print("操作超时")
+}
 ```
 
 #### 同步闭包触发器

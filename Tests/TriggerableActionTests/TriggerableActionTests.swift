@@ -5,6 +5,7 @@
 //  Created by 黄磊 on 2025/11/8.
 //
 
+import Foundation
 import Testing
 @testable import TriggerableAction
 
@@ -838,6 +839,53 @@ struct TriggerableActionTests {
         #expect(TriggerAsyncIntAction.callInt == triggerInt)
         #expect(TriggerAsyncIntToIntAction.callInt == triggerInt)
     }
+    
+    @Test("触发可触发异步闭包带结果事件测试")
+    func testTriggerCompletionAction() async throws {
+        let triggerAction = TriggerCompletionAction<Int, String> { data, completion in
+            completion("\(data)")
+        }
+        
+        let triggerInt = 1
+        let triggerString = "1"
+        
+        let result = try await triggerAction.trigger(with: triggerInt)
+        
+        #expect(result == triggerString)
+    }
+    
+    @Test("触发可触发异步闭包带结果事件抛出异常测试")
+    func testTriggerCompletionActionThrowsError() async throws {
+        struct TestError: Error {}
+        
+        let triggerAction = TriggerCompletionAction<Int, String> { data, completion in
+            throw TestError()
+        }
+        
+        let triggerInt = 1
+        
+        await #expect(throws: TestError.self) {
+            _ = try await triggerAction.trigger(with: triggerInt)
+        }
+    }
+    
+    @Test("触发可触发异步闭包带结果事件超时测试")
+    func testTriggerCompletionActionTimeout() async throws {
+        let triggerAction = TriggerCompletionAction<Int, String>(timeout: 0.1) { data, completion in
+            Thread.sleep(forTimeInterval: 2)
+            completion("\(data)")
+        }
+        
+        let triggerInt = 1
+        
+        do {
+            _ = try await triggerAction.trigger(with: triggerInt)
+            throw TestError()
+        } catch is CancellationError {
+        }
+    }
+    
+    struct TestError: Error {}
 }
 
 struct TriggerIntAction: TriggerableAction {
