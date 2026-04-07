@@ -535,6 +535,50 @@ let asyncConvertedAction = syncAction.prepend(converter: AsyncStringToIntConvert
 try await asyncConvertedAction.trigger(with: "789")
 ```
 
+#### 使用 block 直接前置转化
+
+不需要定义 `DataConverter`，直接用 block 进行数据转化：
+
+```swift
+import TriggerableAction
+
+let intAction = TriggerBlockAction<Int> { print("整数: \($0)") }
+
+// 同步 block 前置转化
+let action = intAction.prepend { (data: String) throws -> Int in
+    guard let value = Int(data) else { throw ConversionError.invalidFormat }
+    return value
+}
+try action.trigger(with: "42") // 输出: 整数: 42
+
+// 异步触发器的 block 前置转化
+let asyncAction = TriggerAsyncBlockAction<Int> { print("异步整数: \($0)") }
+let asyncPrepended = asyncAction.prepend { (data: String) async throws -> Int in
+    Int(data)!
+}
+try await asyncPrepended.trigger(with: "99")
+```
+
+#### 同步触发器升级为异步
+
+将同步触发器包装为异步，方便存入 `AnyAsyncTriggerAction` 容器：
+
+```swift
+import TriggerableAction
+
+let syncAction = TriggerBlockAction<Int> { print("同步: \($0)") }
+
+// 升级为 async
+let asyncAction: AnyAsyncTriggerAction<Int> = syncAction.eraseToAsyncAny()
+try await asyncAction.trigger(with: 1)
+
+// 升级后还可以继续前置 block
+let fullAction = syncAction.eraseToAsyncAny().prepend { (data: String) async throws -> Int in
+    Int(data)!
+}
+try await fullAction.trigger(with: "7")
+```
+
 ## 最佳实践
 
 1. **类型设计**: 为触发器选择合适的触发数据类型，避免过度泛化

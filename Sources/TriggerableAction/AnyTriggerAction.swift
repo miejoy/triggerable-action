@@ -26,11 +26,24 @@ extension TriggerableAction {
     public func eraseToAny() -> AnyTriggerAction<TriggerData> {
         .init(innerTrigger: trigger)
     }
+
+    /// 升级为 async 并抹除协议类型
+    public func eraseToAsyncAny() -> AnyAsyncTriggerAction<TriggerData> {
+        .init { data in try self.trigger(with: data) }
+    }
     
     /// 前置一个数据转化器
     public func prepend<Converter: DataConverter>(converter: Converter) -> AnyTriggerAction<Converter.Input> where Converter.Output == TriggerData {
         .init { input throws in
             let output = try converter.process(data: input)
+            try trigger(with: output)
+        }
+    }
+    
+    /// 前置一个 block 转化器
+    public func prepend<Input>(_ process: @Sendable @escaping (Input) throws -> TriggerData) -> AnyTriggerAction<Input> {
+        .init { input throws in
+            let output = try process(input)
             try trigger(with: output)
         }
     }
@@ -69,6 +82,14 @@ extension TriggerableAsyncAction {
     public func prepend<Converter: AsyncDataConverter>(converter: Converter) -> AnyAsyncTriggerAction<Converter.Input> where Converter.Output == TriggerData {
         .init { input async throws in
             let output = try await converter.process(data: input)
+            try await trigger(with: output)
+        }
+    }
+    
+    /// 前置一个 block 转化器
+    public func prepend<Input>(_ process: @Sendable @escaping (Input) async throws -> TriggerData) -> AnyAsyncTriggerAction<Input> {
+        .init { input async throws in
+            let output = try await process(input)
             try await trigger(with: output)
         }
     }
@@ -115,6 +136,14 @@ extension TriggerableResultAction {
     public func prepend<Converter: DataConverter>(converter: Converter) -> AnyTriggerResultAction<Converter.Input, ResultData> where Converter.Output == TriggerData {
         .init { input throws in
             let output = try converter.process(data: input)
+            return try trigger(with: output)
+        }
+    }
+    
+    /// 前置一个 block 转化器
+    public func prepend<Input>(_ process: @Sendable @escaping (Input) throws -> TriggerData) -> AnyTriggerResultAction<Input, ResultData> {
+        .init { input throws in
+            let output = try process(input)
             return try trigger(with: output)
         }
     }
@@ -169,6 +198,14 @@ extension TriggerableAsyncResultAction {
     public func prepend<Converter: AsyncDataConverter>(converter: Converter) -> AnyAsyncTriggerResultAction<Converter.Input, ResultData> where Converter.Output == TriggerData {
         .init { input async throws in
             let output = try await converter.process(data: input)
+            return try await trigger(with: output)
+        }
+    }
+    
+    /// 前置一个 block 转化器
+    public func prepend<Input>(_ process: @Sendable @escaping (Input) async throws -> TriggerData) -> AnyAsyncTriggerResultAction<Input, ResultData> {
+        .init { input async throws in
+            let output = try await process(input)
             return try await trigger(with: output)
         }
     }

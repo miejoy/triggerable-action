@@ -10,7 +10,7 @@ import Testing
 @testable import TriggerableAction
 
 @MainActor
-@Suite("可触发事件测试")
+@Suite("可触发事件测试", .serialized)
 struct TriggerableActionTests {
     @Test("触发字符串事件测试")
     func testTriggerIntAction() throws {
@@ -886,6 +886,66 @@ struct TriggerableActionTests {
     }
     
     struct TestError: Error {}
+
+    @Test("触发器前置 block 转化测试")
+    func testPrependBlock() throws {
+        TriggerIntAction.callInt = 0
+        let action = TriggerIntAction().prepend { (data: String) throws -> Int in
+            Int(data)!
+        }
+        try action.trigger(with: "1")
+        #expect(TriggerIntAction.callInt == 1)
+    }
+
+    @Test("异步触发器前置 block 转化测试")
+    func testAsyncPrependBlock() async throws {
+        TriggerAsyncStringAction.callString = ""
+        let action = TriggerAsyncStringAction().prepend { (data: Int) async throws -> String in
+            "\(data)"
+        }
+        try await action.trigger(with: 42)
+        #expect(TriggerAsyncStringAction.callString == "42")
+    }
+
+    @Test("带结果触发器前置 block 转化测试")
+    func testResultPrependBlock() throws {
+        struct TriggerStringToIntAction: TriggerableResultAction {
+            func trigger(with data: String) throws -> Int { Int(data)! }
+        }
+        let action = TriggerStringToIntAction().prepend { (data: Int) throws -> String in "\(data)" }
+        let result = try action.trigger(with: 1)
+        #expect(result == 1)
+    }
+
+    @Test("异步带结果触发器前置 block 转化测试")
+    func testAsyncResultPrependBlock() async throws {
+        struct TriggerAsyncStringToIntAction: TriggerableAsyncResultAction {
+            func trigger(with data: String) async throws -> Int { Int(data)! }
+        }
+        let action = TriggerAsyncStringToIntAction().prepend { (data: Int) async throws -> String in "\(data)" }
+        let result = try await action.trigger(with: 1)
+        #expect(result == 1)
+    }
+
+    @Test("同步触发器升级为异步测试")
+    func testEraseToAsyncAny() async throws {
+        TriggerIntAction.callInt = 0
+        defer { TriggerIntAction.callInt = 0 }
+        let action = TriggerIntAction().eraseToAsyncAny()
+        try await action.trigger(with: 99)
+        #expect(TriggerIntAction.callInt == 99)
+    }
+
+    @Test("同步触发器升级为异步后前置 block 转化测试")
+    func testEraseToAsyncAnyWithPrependBlock() async throws {
+        TriggerIntAction.callInt = 0
+        defer { TriggerIntAction.callInt = 0 }
+        let action = TriggerIntAction().eraseToAsyncAny().prepend { (data: String) async throws -> Int in
+            Int(data)!
+        }
+        try await action.trigger(with: "7")
+        #expect(TriggerIntAction.callInt == 7)
+    }
 }
 
 struct TriggerIntAction: TriggerableAction {
